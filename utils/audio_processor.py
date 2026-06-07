@@ -5,6 +5,8 @@ from pydub import AudioSegment
 DOWNLOAD_DIR='downloades'
 os.makedirs(DOWNLOAD_DIR,exist_ok=True)
 
+
+#Taking youtube url and getting out the audio file in {.wav} format 
 def download_youtube_audio(url :str) ->str:
     output_path = os.path.join(DOWNLOAD_DIR, "%(title)s.%(ext)s")
     ydl_opts = {
@@ -25,7 +27,7 @@ def download_youtube_audio(url :str) ->str:
     return filename
 
 
-
+#Any audio with different extensions(.mp3 etc) converting them into {.wav}format 
 def convert_to_wav(input_path: str) -> str:
     """Convert any audio/video file to WAV format using pydub."""
     output_path = os.path.splitext(input_path)[0] + "_converted.wav"
@@ -34,7 +36,7 @@ def convert_to_wav(input_path: str) -> str:
     audio.export(output_path, format="wav")
     return output_path
 
-
+#Converting large audio into chunks of 10minutes 
 def chunks_audio(wav_path:str,chunks_min :int =10)->list:
     audio=AudioSegment.from_wav(wav_path)
     chunks_mms=chunks_min*60*1000
@@ -50,7 +52,7 @@ def chunks_audio(wav_path:str,chunks_min :int =10)->list:
     
     return chunks 
 
-
+#All above function into single function 
 def process_input(source:str)->list:
     if source.startswith("http://") or source.startswith("https://"):
         wav_path=download_youtube_audio(source)
