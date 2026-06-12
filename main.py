@@ -41,7 +41,7 @@ if __name__ == "__main__":
     # CLI entry point
     source = input("Enter YouTube URL or local file path: ").strip()
     language = input("Language (english/hinglish): ").strip() or "english"
-    result = run_pipeline(source, language)
+    result = run_pipeline(source)
 
     print("\n" + "=" * 60)
     print(f"📌 Title: {result['title']}")
