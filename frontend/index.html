@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VoxStream AI — Interact with Any Stream</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --cyan: #22d3ee;
+    --cyan-dim: rgba(34,211,238,0.15);
+    --cyan-glow: rgba(34,211,238,0.4);
+    --indigo: #6366f1;
+    --violet: #8b5cf6;
+    --bg: #050810;
+    --surface: rgba(255,255,255,0.04);
+    --surface-hover: rgba(255,255,255,0.07);
+    --border: rgba(255,255,255,0.08);
+    --border-cyan: rgba(34,211,238,0.3);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #475569;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Inter', sans-serif;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ─── Aurora Background ─── */
+  #aurora {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .aurora-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.18;
+    will-change: transform;
+  }
+  .orb-cyan {
+    width: 900px; height: 900px;
+    background: radial-gradient(circle, #22d3ee 0%, transparent 70%);
+    top: -300px; left: -200px;
+    animation: driftA 28s ease-in-out infinite alternate;
+  }
+  .orb-indigo {
+    width: 700px; height: 700px;
+    background: radial-gradient(circle, #6366f1 0%, transparent 70%);
+    top: 100px; right: -150px;
+    animation: driftB 22s ease-in-out infinite alternate;
+  }
+  .orb-slate {
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, #0f172a 0%, #312e81 50%, transparent 70%);
+    bottom: -100px; left: 30%;
+    animation: driftC 33s ease-in-out infinite alternate;
+  }
+  @keyframes driftA { from { transform: translate(0, 0) scale(1); } to { transform: translate(120px, 80px) scale(1.1); } }
+  @keyframes driftB { from { transform: translate(0, 0) scale(1.05); } to { transform: translate(-80px, 60px) scale(0.95); } }
+  @keyframes driftC { from { transform: translate(0, 0); } to { transform: translate(-60px, -100px) scale(1.15); } }
+
+  /* ─── Layout ─── */
+  #root { position: relative; z-index: 1; }
+
+  /* ─── Navbar ─── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 2rem;
+    height: 64px;
+    background: rgba(5,8,16,0.6);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-logo {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 700; font-size: 1.1rem; letter-spacing: -0.02em;
+  }
+  .logo-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--cyan), var(--indigo));
+    display: flex; align-items: center; justify-content: center;
+  }
+  .logo-icon svg { width: 18px; height: 18px; color: white; }
+  .logo-text span { color: var(--cyan); }
+
+  .status-badge {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 12px; border-radius: 999px;
+    background: rgba(34,211,238,0.08);
+    border: 1px solid rgba(34,211,238,0.2);
+    font-size: 0.72rem; font-weight: 500; letter-spacing: 0.04em;
+    color: var(--cyan); text-transform: uppercase;
+  }
+  .pulse-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: #22c55e;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
+
+  .nav-links { display: flex; align-items: center; gap: 8px; }
+  .nav-icon-btn {
+    width: 36px; height: 36px; border-radius: 8px;
+    background: var(--surface); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-secondary); cursor: pointer; transition: all 0.2s;
+    text-decoration: none;
+  }
+  .nav-icon-btn:hover { background: var(--surface-hover); color: var(--text-primary); border-color: var(--border-cyan); }
+  .nav-icon-btn svg { width: 16px; height: 16px; }
+
+  /* ─── Hero ─── */
+  .hero {
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 120px 1.5rem 80px;
+    text-align: center;
+    position: relative;
+  }
+  .hero-eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 14px; border-radius: 999px;
+    background: rgba(34,211,238,0.06); border: 1px solid rgba(34,211,238,0.2);
+    font-size: 0.75rem; font-weight: 500; color: var(--cyan);
+    letter-spacing: 0.06em; text-transform: uppercase;
+    margin-bottom: 2rem;
+    animation: slideUp 0.8s ease-out both;
+  }
+  .hero-eyebrow-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--cyan); }
+
+  .hero-headline {
+    font-size: clamp(2.8rem, 7vw, 5.5rem);
+    font-weight: 900; letter-spacing: -0.04em; line-height: 1.05;
+    background: linear-gradient(170deg, #ffffff 30%, #94a3b8 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    max-width: 900px;
+    margin-bottom: 1.5rem;
+    animation: slideUp 0.8s ease-out 0.1s both;
+  }
+
+  .hero-sub {
+    font-size: clamp(1rem, 2vw, 1.2rem);
+    color: var(--text-secondary); line-height: 1.7;
+    max-width: 620px; margin-bottom: 3.5rem;
+    animation: slideUp 0.8s ease-out 0.2s both;
+    font-weight: 300;
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─── Main Interface Card ─── */
+  .interface-wrapper {
+    width: 100%; max-width: 660px;
+    position: relative;
+    animation: slideUp 0.8s ease-out 0.35s both;
+  }
+
+  .ambient-glow {
+    position: absolute; inset: -60px;
+    background: radial-gradient(ellipse at center, rgba(34,211,238,0.12) 0%, transparent 70%);
+    pointer-events: none; z-index: -1;
+    border-radius: 50%;
+  }
+
+  .interface-card {
+    background: rgba(255,255,255,0.035);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 2rem;
+    -webkit-backdrop-filter: blur(24px);
+    backdrop-filter: blur(24px);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Conic ray border animation */
+  .interface-card::before {
+    content: '';
+    position: absolute; inset: -2px;
+    border-radius: 26px;
+    background: conic-gradient(from var(--angle, 0deg), transparent 0%, var(--cyan) 8%, transparent 16%, transparent 100%);
+    z-index: -1;
+    animation: spin 4s linear infinite;
+    opacity: 0.7;
+  }
+  @property --angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+  @keyframes spin { to { --angle: 360deg; } }
+  .interface-card::after {
+    content: '';
+    position: absolute; inset: 1px;
+    border-radius: 23px;
+    background: rgba(5,8,16,0.95);
+    z-index: -1;
+  }
+
+  /* ─── Tab Selector ─── */
+  .tab-row {
+    display: flex; gap: 4px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 1.5rem;
+    position: relative;
+  }
+  .tab-pill {
+    position: absolute; top: 4px; bottom: 4px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, rgba(34,211,238,0.2), rgba(99,102,241,0.15));
+    border: 1px solid var(--border-cyan);
+    transition: left 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+  }
+  .tab-btn {
+    flex: 1; padding: 10px 16px; border-radius: 9px;
+    background: none; border: none; cursor: pointer;
+    font-family: var(--sans); font-size: 0.875rem; font-weight: 500;
+    color: var(--text-muted);
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: color 0.25s;
+    position: relative; z-index: 1;
+  }
+  .tab-btn.active { color: var(--cyan); }
+  .tab-btn svg { width: 15px; height: 15px; }
+
+  /* ─── Input Area ─── */
+  .input-group { position: relative; margin-bottom: 1.25rem; }
+  .url-input {
+    width: 100%; padding: 14px 18px;
+    background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+    border-radius: 12px; color: var(--text-primary);
+    font-family: var(--mono); font-size: 0.875rem;
+    outline: none; transition: border-color 0.25s, box-shadow 0.25s;
+  }
+  .url-input::placeholder { color: var(--text-muted); }
+  .url-input:focus {
+    border-color: rgba(34,211,238,0.4);
+    box-shadow: 0 0 0 3px rgba(34,211,238,0.08);
+  }
+
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 12px; padding: 2.5rem 1.5rem;
+    text-align: center; cursor: pointer;
+    transition: all 0.25s; position: relative;
+    display: none;
+  }
+  .upload-zone.active { display: block; }
+  .upload-zone:hover {
+    border-color: var(--border-cyan);
+    background: rgba(34,211,238,0.03);
+  }
+  .upload-icon { color: var(--text-muted); margin-bottom: 0.75rem; }
+  .upload-icon svg { width: 32px; height: 32px; }
+  .upload-text { color: var(--text-secondary); font-size: 0.875rem; }
+  .upload-sub { color: var(--text-muted); font-size: 0.75rem; margin-top: 0.35rem; }
+  .upload-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+  /* ─── CTA Button ─── */
+  .cta-wrapper { position: relative; }
+  .cta-glow {
+    position: absolute; inset: -8px;
+    background: radial-gradient(ellipse, rgba(34,211,238,0.35) 0%, transparent 70%);
+    border-radius: 20px;
+    animation: ctaPulse 3s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes ctaPulse { 0%,100% { opacity: 0.6; transform: scale(0.95); } 50% { opacity: 1; transform: scale(1.05); } }
+
+  .cta-btn {
+    width: 100%; padding: 15px 24px;
+    background: linear-gradient(135deg, #06b6d4, #6366f1);
+    border: none; border-radius: 12px;
+    color: white; font-family: var(--sans);
+    font-size: 1rem; font-weight: 600;
+    cursor: pointer; position: relative; z-index: 1;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    transition: transform 0.15s, filter 0.15s;
+    letter-spacing: -0.01em;
+  }
+  .cta-btn:hover { filter: brightness(1.15); }
+  .cta-btn:active { transform: scale(0.985); }
+  .cta-btn svg { width: 18px; height: 18px; }
+
+  /* ─── Processing State ─── */
+  .processing-overlay {
+    display: none;
+    flex-direction: column; align-items: center; justify-content: center;
+    padding: 3rem 2rem; gap: 1.5rem;
+    text-align: center;
+  }
+  .processing-overlay.show { display: flex; }
+  .ripple-core {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--cyan), var(--indigo));
+    position: relative; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 40px rgba(34,211,238,0.5);
+  }
+  .ripple-core::before, .ripple-core::after {
+    content: ''; position: absolute; border-radius: 50%;
+    border: 1px solid rgba(34,211,238,0.4);
+    animation: ripple 2s ease-out infinite;
+  }
+  .ripple-core::after { animation-delay: 0.7s; }
+  @keyframes ripple {
+    0% { width: 64px; height: 64px; opacity: 1; }
+    100% { width: 160px; height: 160px; opacity: 0; }
+  }
+  .ripple-core svg { width: 28px; height: 28px; color: white; position: relative; z-index: 1; }
+
+  .skeleton-bar {
+    height: 12px; border-radius: 6px; width: 100%;
+    background: linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.04) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+  @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+  .skeleton-bars { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+  .skeleton-bar:nth-child(2) { width: 80%; }
+  .skeleton-bar:nth-child(3) { width: 60%; }
+
+  /* ─── Features Grid ─── */
+  .features-section {
+    padding: 6rem 1.5rem;
+    max-width: 1100px; margin: 0 auto;
+  }
+  .section-label {
+    font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.12em; color: var(--cyan);
+    margin-bottom: 1rem;
+  }
+  .section-title {
+    font-size: clamp(1.8rem, 4vw, 3rem);
+    font-weight: 800; letter-spacing: -0.03em; line-height: 1.15;
+    background: linear-gradient(170deg, #f8fafc 40%, #64748b 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 0.75rem;
+  }
+  .section-sub {
+    color: var(--text-secondary); font-size: 1rem; font-weight: 300;
+    max-width: 480px; line-height: 1.7;
+    margin-bottom: 3rem;
+  }
+
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .feature-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 20px; padding: 2rem;
+    position: relative; overflow: hidden;
+    transition: border-color 0.3s, background 0.3s, transform 0.3s;
+    cursor: default;
+  }
+  .feature-card:hover {
+    border-color: rgba(34,211,238,0.35);
+    background: rgba(34,211,238,0.04);
+    transform: translateY(-3px);
+  }
+  .feature-card:hover .card-icon { transform: translateY(-4px); }
+  .feature-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(34,211,238,0.5), transparent);
+    opacity: 0; transition: opacity 0.3s;
+  }
+  .feature-card:hover::before { opacity: 1; }
+
+  .card-icon {
+    width: 48px; height: 48px; border-radius: 12px;
+    background: rgba(34,211,238,0.1); border: 1px solid rgba(34,211,238,0.2);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 1.25rem; transition: transform 0.3s ease;
+    color: var(--cyan);
+  }
+  .card-icon svg { width: 22px; height: 22px; }
+  .card-icon.violet {
+    background: rgba(139,92,246,0.1); border-color: rgba(139,92,246,0.2);
+    color: #a78bfa;
+  }
+  .card-icon.teal {
+    background: rgba(20,184,166,0.1); border-color: rgba(20,184,166,0.2);
+    color: #2dd4bf;
+  }
+
+  .card-title {
+    font-size: 1.05rem; font-weight: 700; letter-spacing: -0.02em;
+    color: var(--text-primary); margin-bottom: 0.6rem;
+  }
+  .card-desc {
+    font-size: 0.875rem; color: var(--text-secondary);
+    line-height: 1.7; font-weight: 300; margin-bottom: 1.5rem;
+  }
+
+  /* Mini graphics inside cards */
+  .card-graphic { margin-top: auto; }
+  .transcript-lines { display: flex; flex-direction: column; gap: 7px; }
+  .t-line { height: 7px; border-radius: 4px; background: rgba(34,211,238,0.15); }
+  .t-line:nth-child(2) { width: 80%; }
+  .t-line:nth-child(3) { width: 65%; background: rgba(34,211,238,0.25); }
+  .t-line:nth-child(4) { width: 90%; }
+  .t-line:nth-child(5) { width: 55%; background: rgba(34,211,238,0.25); }
+
+  .vector-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; }
+  .v-dot {
+    aspect-ratio: 1; border-radius: 2px;
+    background: rgba(139,92,246,0.12);
+    transition: background 0.3s;
+  }
+  .v-dot.lit { background: rgba(139,92,246,0.5); }
+  .v-dot.bright { background: rgba(139,92,246,0.8); box-shadow: 0 0 6px rgba(139,92,246,0.5); }
+
+  .chat-bubbles { display: flex; flex-direction: column; gap: 10px; }
+  .bubble {
+    padding: 8px 12px; border-radius: 12px;
+    font-size: 0.75rem; line-height: 1.5; max-width: 90%;
+  }
+  .bubble.user {
+    background: rgba(34,211,238,0.12); border: 1px solid rgba(34,211,238,0.2);
+    color: #a5f3fc; align-self: flex-end; border-radius: 12px 12px 3px 12px;
+  }
+  .bubble.bot {
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+    color: var(--text-secondary); align-self: flex-start; border-radius: 12px 12px 12px 3px;
+  }
+
+  /* ─── Pipeline Section ─── */
+  .pipeline-section {
+    padding: 5rem 1.5rem;
+    max-width: 1100px; margin: 0 auto;
+  }
+  .pipeline-steps {
+    display: flex; align-items: flex-start; gap: 0;
+    overflow-x: auto; padding-bottom: 1rem;
+  }
+  .pipeline-step {
+    flex: 1; min-width: 160px;
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center; gap: 1rem; position: relative;
+  }
+  .pipeline-step:not(:last-child)::after {
+    content: '';
+    position: absolute; top: 24px; left: calc(50% + 28px);
+    width: calc(100% - 56px); height: 1px;
+    background: linear-gradient(90deg, rgba(34,211,238,0.4), rgba(99,102,241,0.4));
+  }
+  .step-num {
+    width: 48px; height: 48px; border-radius: 50%;
+    border: 1px solid var(--border-cyan);
+    background: rgba(34,211,238,0.08);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 0.85rem; font-weight: 500;
+    color: var(--cyan); flex-shrink: 0;
+  }
+  .step-label {
+    font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);
+    letter-spacing: 0.02em;
+  }
+  .step-desc { font-size: 0.72rem; color: var(--text-muted); line-height: 1.6; }
+
+  /* ─── Footer ─── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 3rem 1.5rem;
+    text-align: center;
+    color: var(--text-muted); font-size: 0.8rem;
+  }
+  footer a { color: var(--cyan); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+  .footer-logo {
+    font-weight: 700; font-size: 1.1rem; letter-spacing: -0.02em;
+    margin-bottom: 0.5rem; color: var(--text-secondary);
+  }
+  .footer-logo span { color: var(--cyan); }
+
+  /* ─── Stack Badge Row ─── */
+  .stack-row {
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;
+    margin: 2rem auto; max-width: 700px;
+  }
+  .stack-badge {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 12px; border-radius: 999px;
+    background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+    font-size: 0.72rem; font-weight: 500; color: var(--text-secondary);
+    letter-spacing: 0.03em;
+  }
+  .stack-badge-dot { width: 5px; height: 5px; border-radius: 50%; }
+  .dot-cyan { background: var(--cyan); }
+  .dot-violet { background: #8b5cf6; }
+  .dot-green { background: #22c55e; }
+  .dot-amber { background: #f59e0b; }
+
+  /* ─── Responsive ─── */
+  @media (max-width: 640px) {
+    nav { padding: 0 1rem; }
+    .status-badge { display: none; }
+    .pipeline-steps { flex-direction: column; align-items: center; }
+    .pipeline-step:not(:last-child)::after { display: none; }
+    .pipeline-step { min-width: unset; width: 100%; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .orb-cyan, .orb-indigo, .orb-slate, .cta-glow, .pulse-dot { animation: none; }
+  }
+
+  /* ─── Workspace ─── */
+  .workspace { width: 100%; max-width: 860px; margin: 0 auto; }
+
+  .ws-new-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 8px 18px; border-radius: 999px;
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+    color: var(--text-secondary); font-family: var(--sans);
+    font-size: 0.8rem; cursor: pointer; transition: all 0.2s;
+  }
+  .ws-new-btn:hover { border-color: var(--border-cyan); color: var(--cyan); }
+
+  .ws-tabs {
+    display: flex; gap: 4px; flex-wrap: wrap;
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    border-radius: 14px; padding: 5px; margin-bottom: 1.5rem;
+  }
+  .ws-tab {
+    flex: 1; min-width: 80px; padding: 9px 14px; border-radius: 10px;
+    background: none; border: none; cursor: pointer;
+    font-family: var(--sans); font-size: 0.8rem; font-weight: 500;
+    color: var(--text-muted); transition: all 0.2s; white-space: nowrap;
+  }
+  .ws-tab:hover { color: var(--text-secondary); background: rgba(255,255,255,0.04); }
+  .ws-tab.active {
+    background: rgba(34,211,238,0.12); color: var(--cyan);
+    border: 1px solid rgba(34,211,238,0.2);
+  }
+
+  .ws-panel { display: none; }
+  .ws-panel.active { display: block; }
+
+  .ws-prose {
+    background: rgba(255,255,255,0.025); border: 1px solid var(--border);
+    border-radius: 16px; padding: 1.75rem;
+    color: var(--text-secondary); font-size: 0.93rem;
+    line-height: 1.85; font-weight: 300;
+    white-space: pre-wrap; word-break: break-word;
+    min-height: 160px;
+  }
+
+  .chat-log {
+    display: flex; flex-direction: column; gap: 12px;
+    min-height: 220px; max-height: 420px; overflow-y: auto;
+    padding: 1.25rem;
+    background: rgba(255,255,255,0.02); border: 1px solid var(--border);
+    border-radius: 16px 16px 0 0; scroll-behavior: smooth;
+  }
+  .chat-input-row {
+    display: flex; gap: 10px;
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    border-top: none; border-radius: 0 0 16px 16px; padding: 12px;
+  }
+  .chat-input-row .url-input { flex: 1; margin: 0; }
+  .ws-bubble {
+    max-width: 85%; padding: 11px 15px; border-radius: 14px;
+    font-size: 0.875rem; line-height: 1.65; white-space: pre-wrap;
+  }
+  .ws-bubble.user {
+    background: rgba(34,211,238,0.12); border: 1px solid rgba(34,211,238,0.2);
+    color: #a5f3fc; align-self: flex-end; border-radius: 14px 14px 3px 14px;
+  }
+  .ws-bubble.bot {
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+    color: var(--text-secondary); align-self: flex-start; border-radius: 14px 14px 14px 3px;
+  }
+  .ws-bubble.thinking { opacity: 0.5; font-style: italic; }
+
+  /* ─── Utility classes replacing inline styles ─── */
+  .text-cyan          { color: var(--cyan); }
+  .no-underline       { text-decoration: none; }
+
+  .model-info-row {
+    display: flex; align-items: center; justify-content: center;
+    gap: 1.5rem; margin-top: 1.25rem; flex-wrap: wrap;
+  }
+  .model-badge {
+    font-size: 0.7rem; color: var(--text-muted);
+    display: flex; align-items: center; gap: 5px;
+  }
+  .proc-status-text   { font-weight: 600; font-size: 1rem; margin-bottom: 0.4rem; }
+  .proc-sub-text      { font-size: 0.8rem; color: var(--text-muted); }
+  .skeleton-bars-wrap { width: 100%; max-width: 320px; }
+  .cancel-btn {
+    background: none; border: 1px solid var(--border);
+    color: var(--text-secondary); padding: 8px 20px;
+    border-radius: 8px; cursor: pointer;
+    font-family: var(--sans); font-size: 0.8rem;
+  }
+  .stack-row-mt       { margin-top: 2.5rem; }
+  .pipeline-hd        { text-align: center; margin-bottom: 3rem; }
+  .pipeline-hd .section-sub { margin: 0 auto; }
+  .t-full             { width: 100%; }
+  .footer-copy        { margin-bottom: 1rem; }
+  .footer-legal       { margin-top: 1.5rem; font-size: 0.7rem; color: var(--text-muted); }
+
+  /* ─── Workspace inline-style extractions ─── */
+  .ws-header { text-align: center; margin-bottom: 2.5rem; }
+  .ws-eyebrow { display: inline-flex; margin-bottom: 1rem; }
+  .ws-title { font-size: clamp(1.6rem, 4vw, 2.8rem); }
+  .ws-actions-row { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 1rem; flex-wrap: wrap; }
+  .ws-prose-mono { font-family: var(--mono); font-size: 0.82rem; opacity: 0.75; }
+  .ws-prose-muted { color: var(--text-muted); }
+  .ws-send-btn { width: auto; padding: 14px 20px; flex-shrink: 0; }
+  .proc-status-text { font-weight: 600; font-size: 1rem; margin-bottom: 0.4rem; }
+  .proc-sub-text { font-size: 0.8rem; color: var(--text-muted); }
+  .proc-cancel-btn {
+    background: none; border: 1px solid var(--border);
+    color: var(--text-secondary); padding: 8px 20px;
+    border-radius: 8px; cursor: pointer;
+    font-family: var(--sans); font-size: 0.8rem;
+  }
+  .model-info-row {
+    display: flex; align-items: center; justify-content: center;
+    gap: 1.5rem; margin-top: 1.25rem; flex-wrap: wrap;
+  }
+  .model-info-badge {
+    font-size: 0.7rem; color: var(--text-muted);
+    display: flex; align-items: center; gap: 5px;
+  }
+  .stack-row-hero { margin-top: 2.5rem; }
+  .pipeline-center { text-align: center; margin-bottom: 3rem; }
+  .pipeline-sub { margin: 0 auto; }
+
+  .footer-built { margin-bottom: 1rem; }
+  .footer-copy { margin-top: 1.5rem; font-size: 0.7rem; color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<!-- Aurora Background -->
+<div id="aurora" aria-hidden="true">
+  <div class="aurora-orb orb-cyan"></div>
+  <div class="aurora-orb orb-indigo"></div>
+  <div class="aurora-orb orb-slate"></div>
+</div>
+
+<div id="root">
+
+  <!-- ─── Navbar ─── -->
+  <nav>
+    <div class="nav-logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M12 2a10 10 0 0 1 10 10"/>
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+          <path d="M5.64 5.64l2.12 2.12M16.24 16.24l2.12 2.12"/>
+        </svg>
+      </div>
+      <span>VoxStream<span class="text-cyan"> AI</span></span>
+    </div>
+
+    <div class="status-badge">
+      <div class="pulse-dot"></div>
+      Agent Status: Optimal
+    </div>
+
+    <div class="nav-links">
+      <a href="#features" class="nav-icon-btn" title="Features">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg>
+      </a>
+      <a href="https://github.com" target="_blank" rel="noopener noreferrer" class="nav-icon-btn" title="GitHub">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/>
+        </svg>
+      </a>
+      <a href="#docs" class="nav-icon-btn" title="Documentation">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+      </a>
+    </div>
+  </nav>
+
+  <!-- ─── Hero ─── -->
+  <section class="hero">
+    <div class="hero-eyebrow">
+      <div class="hero-eyebrow-dot"></div>
+      Powered by RAG · Vector Intelligence · Whisper ASR
+    </div>
+
+    <h1 class="hero-headline">Interact with Any<br/>Stream of Sound or Video.</h1>
+
+    <p class="hero-sub">
+      Instantly ingest, summarize, and cross-examine multimedia context with an enterprise-grade intelligence agent. Drop in a YouTube link or audio file — the rest is automatic.
+    </p>
+
+    <!-- Central Interface -->
+    <div class="interface-wrapper">
+      <div class="ambient-glow"></div>
+      <div class="interface-card" id="interface-card">
+
+        <!-- Normal input state -->
+        <div id="input-state">
+          <!-- Tabs -->
+          <div class="tab-row" id="tab-row">
+            <div class="tab-pill" id="tab-pill"></div>
+            <button class="tab-btn active" id="tab-yt" onclick="switchTab('yt')">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+              </svg>
+              YouTube Link
+            </button>
+            <button class="tab-btn" id="tab-audio" onclick="switchTab('audio')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+              </svg>
+              Audio Upload
+            </button>
+          </div>
+
+          <!-- URL input panel -->
+          <div id="panel-yt" class="input-group">
+            <input class="url-input" type="text" id="url-input"
+              placeholder="https://youtube.com/watch?v=..." />
+          </div>
+
+          <!-- Audio upload panel -->
+          <div id="panel-audio" class="input-group">
+            <div class="upload-zone" id="upload-zone">
+              <div class="upload-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                  <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+                  <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+                </svg>
+              </div>
+              <p class="upload-text">Drop your audio file here or click to browse</p>
+              <p class="upload-sub">MP3, WAV, M4A, FLAC — up to 500 MB</p>
+              <input type="file" class="upload-input" accept="audio/*" onchange="handleFileSelect(this)" />
+            </div>
+          </div>
+
+          <!-- CTA -->
+          <div class="cta-wrapper">
+            <div class="cta-glow"></div>
+            <button class="cta-btn" id="cta-btn" onclick="triggerAnalysis()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+              Analyze Media
+            </button>
+          </div>
+
+          <!-- Model info row -->
+          <div class="model-info-row">
+            <span class="model-badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+              Whisper ASR
+            </span>
+            <span class="model-badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="10" ry="4"/><path d="M2 12c0 2.2 4.5 4 10 4s10-1.8 10-4"/><path d="M2 12v4c0 2.2 4.5 4 10 4s10-1.8 10-4v-4"/></svg>
+              Chroma Vector DB
+            </span>
+            <span class="model-badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10H12V2z"/><path d="M22 12A10 10 0 0 0 12 2"/></svg>
+              LangChain RAG
+            </span>
+          </div>
+        </div>
+
+        <!-- Processing state (hidden initially) -->
+        <div class="processing-overlay" id="processing-state">
+          <div class="ripple-core">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M12 2a10 10 0 0 1 10 10"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </div>
+          <div>
+            <p class="proc-status-text" id="proc-status">Transcribing audio stream...</p>
+            <p class="proc-sub-text" id="proc-sub">Extracting context with Whisper ASR</p>
+          </div>
+          <div class="skeleton-bars skeleton-bars-wrap">
+            <div class="skeleton-bar"></div>
+            <div class="skeleton-bar"></div>
+            <div class="skeleton-bar"></div>
+          </div>
+          <button onclick="resetState()" class="cancel-btn">Cancel</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Stack row -->
+    <div class="stack-row stack-row-mt">
+      <span class="stack-badge"><span class="stack-badge-dot dot-cyan"></span>Python + FastAPI</span>
+      <span class="stack-badge"><span class="stack-badge-dot dot-violet"></span>LangChain</span>
+      <span class="stack-badge"><span class="stack-badge-dot dot-green"></span>OpenAI Whisper</span>
+      <span class="stack-badge"><span class="stack-badge-dot dot-amber"></span>ChromaDB</span>
+      <span class="stack-badge"><span class="stack-badge-dot dot-cyan"></span>yt-dlp</span>
+      <span class="stack-badge"><span class="stack-badge-dot dot-violet"></span>GPT-4o</span>
+    </div>
+  </section>
+
+  <!-- ─── Pipeline Steps ─── -->
+  <section class="pipeline-section">
+    <div class="pipeline-hd">
+      <div class="section-label">How It Works</div>
+      <h2 class="section-title">From URL to Intelligence</h2>
+      <p class="section-sub pipeline-sub">A five-stage automated pipeline that processes any media source into a queryable knowledge base in seconds.</p>
+    </div>
+    <div class="pipeline-steps">
+      <div class="pipeline-step">
+        <div class="step-num">01</div>
+        <div class="step-label">Ingest</div>
+        <div class="step-desc">YouTube URL or local audio file is pulled via yt-dlp or direct read</div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">02</div>
+        <div class="step-label">Transcribe</div>
+        <div class="step-desc">Whisper ASR converts raw audio into timestamped transcript chunks</div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">03</div>
+        <div class="step-label">Summarize</div>
+        <div class="step-desc">LLM extracts a title, summary, action items, decisions & open questions</div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">04</div>
+        <div class="step-label">Vectorize</div>
+        <div class="step-desc">Chunks are embedded and stored in ChromaDB for semantic retrieval</div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">05</div>
+        <div class="step-label">Chat</div>
+        <div class="step-desc">RAG chain grounds answers in transcript context for zero hallucinations</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Feature Cards ─── -->
+  <section class="features-section" id="features">
+    <div class="section-label">Capabilities</div>
+    <h2 class="section-title">Enterprise Intelligence,<br/>Zero Setup.</h2>
+    <p class="section-sub">Three tightly integrated modules that take you from raw media to actionable insight without leaving the interface.</p>
+
+    <div class="cards-grid">
+      <!-- Card 1 -->
+      <div class="feature-card">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+        </div>
+        <div class="card-title">Context Extraction</div>
+        <div class="card-desc">Full verbatim transcript pulled with Whisper, then parsed into structured sections: title, executive summary, action items, key decisions, and open questions.</div>
+        <div class="card-graphic">
+          <div class="transcript-lines">
+            <div class="t-line t-full"></div>
+            <div class="t-line"></div>
+            <div class="t-line"></div>
+            <div class="t-line"></div>
+            <div class="t-line"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="feature-card">
+        <div class="card-icon violet">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/>
+            <line x1="12" y1="22" x2="12" y2="15.5"/>
+            <polyline points="22 8.5 12 15.5 2 8.5"/>
+          </svg>
+        </div>
+        <div class="card-title">Neural Vector Mapping</div>
+        <div class="card-desc">Transcript chunks are embedded via OpenAI's embedding model and stored in ChromaDB. Each chunk carries semantic coordinates for sub-millisecond retrieval.</div>
+        <div class="card-graphic">
+          <div class="vector-grid" id="vector-grid"></div>
+        </div>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="feature-card">
+        <div class="card-icon teal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+        <div class="card-title">Contextual RAG Chat</div>
+        <div class="card-desc">Ask anything about the media. The RAG chain retrieves only the relevant chunks, feeds them as grounding context, and returns precise, citation-aware answers.</div>
+        <div class="card-graphic">
+          <div class="chat-bubbles">
+            <div class="bubble user">What were the key decisions?</div>
+            <div class="bubble bot">Three decisions were confirmed: budget approval for Q3, new vendor onboarding timeline, and the product roadmap freeze through August.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Footer ─── -->
+  <footer>
+    <div class="footer-logo">VoxStream<span> AI</span></div>
+    <p class="footer-copy">Built with Python · LangChain · OpenAI · ChromaDB · yt-dlp</p>
+    <p>
+      <a href="https://github.com">GitHub</a> · 
+      <a href="#docs">Documentation</a> · 
+      <a href="#features">Features</a>
+    </p>
+    <p class="footer-legal">© 2025 VoxStream AI. Unstructured media, structured intelligence.</p>
+  </footer>
+
+</div><!-- #root -->
+
+<script>
+  // ════════════════════════════════════════════════════════
+  //  CONFIG — set to match your running FastAPI server
+  // ════════════════════════════════════════════════════════
+ const API_BASE = 'http://localhost:8000';  
+
+  // ─── State ───────────────────────────────────────────────
+  let currentTab    = 'yt';
+  let sessionId     = null;
+  let sseSource     = null;
+  let uploadedPath  = null;   // temp path from /api/upload
+  let chatHistory   = [];     // [{role,text}]
+
+  // ─── Tab Logic ───────────────────────────────────────────
+  function switchTab(tab) {
+    currentTab = tab;
+    const pill     = document.getElementById('tab-pill');
+    const btnYt    = document.getElementById('tab-yt');
+    const btnAudio = document.getElementById('tab-audio');
+    const panelYt  = document.getElementById('panel-yt');
+    const panelAudio = document.getElementById('panel-audio');
+    const row      = document.getElementById('tab-row');
+    const rowRect  = row.getBoundingClientRect();
+    if (tab === 'yt') {
+      btnYt.classList.add('active'); btnAudio.classList.remove('active');
+      panelYt.style.display = '';
+      panelAudio.querySelector('.upload-zone').style.display = 'none';
+      const r = btnYt.getBoundingClientRect();
+      pill.style.left = (r.left - rowRect.left - 4) + 'px'; pill.style.width = r.width + 'px';
+    } else {
+      btnAudio.classList.add('active'); btnYt.classList.remove('active');
+      panelYt.style.display = 'none';
+      panelAudio.querySelector('.upload-zone').style.display = 'block';
+      const r = btnAudio.getBoundingClientRect();
+      pill.style.left = (r.left - rowRect.left - 4) + 'px'; pill.style.width = r.width + 'px';
+    }
+  }
+
+  window.addEventListener('load', () => {
+    setTimeout(() => switchTab('yt'), 50);
+    buildVectorGrid();
+  });
+
+  // ─── Vector Grid ─────────────────────────────────────────
+  function buildVectorGrid() {
+    const grid = document.getElementById('vector-grid');
+    if (!grid) return;
+    const litSet    = new Set([2,5,9,12,14,17,19,22,25,27,30,33]);
+    const brightSet = new Set([12,19,25]);
+    for (let i = 0; i < 40; i++) {
+      const d = document.createElement('div');
+      d.className = 'v-dot' + (brightSet.has(i) ? ' bright' : litSet.has(i) ? ' lit' : '');
+      grid.appendChild(d);
+    }
+    setInterval(() => {
+      const dots = grid.querySelectorAll('.v-dot');
+      dots[Math.floor(Math.random() * dots.length)].classList.toggle('lit');
+    }, 400);
+  }
+
+  // ─── File Upload ──────────────────────────────────────────
+  async function handleFileSelect(input) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    const zone = document.getElementById('upload-zone');
+    zone.querySelector('.upload-text').textContent = '⏳ Uploading ' + file.name + '…';
+    zone.querySelector('.upload-sub').textContent  = (file.size / 1024 / 1024).toFixed(1) + ' MB';
+    zone.style.borderColor = 'rgba(34,211,238,0.4)';
+
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res  = await fetch(`${API_BASE}/api/upload`, { method: 'POST', body: fd });
+      const data = await res.json();
+      uploadedPath = data.path;
+      zone.querySelector('.upload-text').textContent = '✓ ' + file.name;
+      zone.querySelector('.upload-sub').textContent  = (file.size / 1024 / 1024).toFixed(1) + ' MB — ready to process';
+      zone.style.background = 'rgba(34,211,238,0.04)';
+    } catch (err) {
+      zone.querySelector('.upload-text').textContent = '✗ Upload failed — is the server running?';
+      zone.querySelector('.upload-sub').textContent  = String(err);
+      zone.style.borderColor = 'rgba(239,68,68,0.4)';
+    }
+  }
+
+  // ─── Main Analysis Trigger ────────────────────────────────
+  async function triggerAnalysis() {
+    let source = '';
+    if (currentTab === 'yt') {
+      source = document.getElementById('url-input').value.trim();
+      if (!source) { shakeInput(); return; }
+    } else {
+      if (!uploadedPath) { shakeUpload(); return; }
+      source = uploadedPath;
+    }
+
+    // Show processing overlay
+    document.getElementById('input-state').style.display = 'none';
+    document.getElementById('processing-state').classList.add('show');
+    setPhaseUI('Starting pipeline…', 'Connecting to VoxStream AI backend');
+
+    try {
+      // 1 — POST /api/analyze
+      const res = await fetch(`${API_BASE}/api/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source, language: 'english' }),
+      });
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+      const { session_id } = await res.json();
+      sessionId = session_id;
+
+      // 2 — SSE /api/status/:sid
+      listenSSE(session_id);
+
+    } catch (err) {
+      showPipelineError(String(err));
+    }
+  }
+
+  // ─── SSE Listener ─────────────────────────────────────────
+  const PHASE_ICONS = {
+    ingest:     '📥',
+    transcribe: '🎙️',
+    summarize:  '📋',
+    extract:    '🔍',
+    vectorize:  '🧠',
+  };
+
+  function listenSSE(sid) {
+    if (sseSource) sseSource.close();
+    sseSource = new EventSource(`${API_BASE}/api/status/${sid}`);
+
+    sseSource.addEventListener('phase', e => {
+      const { label, message, done } = JSON.parse(e.data);
+      const icon = PHASE_ICONS[label] || '⚙️';
+      setPhaseUI(
+        `${done ? '✓' : icon} ${message}${done ? '' : '…'}`,
+        done ? 'Complete' : 'Processing…'
+      );
+    });
+
+    sseSource.addEventListener('done', async e => {
+      sseSource.close();
+      const { title } = JSON.parse(e.data);
+      setPhaseUI('✓ Pipeline complete', `"${title}" — loading workspace`);
+      await new Promise(r => setTimeout(r, 800));
+      // Fetch full result then show workspace
+      try {
+        const r = await fetch(`${API_BASE}/api/result/${sessionId}`);
+        const data = await r.json();
+        showWorkspace(data);
+      } catch (err) {
+        showPipelineError('Could not fetch result: ' + err);
+      }
+    });
+
+    sseSource.addEventListener('error', e => {
+      sseSource.close();
+      try {
+        const { message } = JSON.parse(e.data);
+        showPipelineError(message);
+      } catch { showPipelineError('Unknown pipeline error'); }
+    });
+
+    sseSource.onerror = () => {
+      // SSE connection dropped (normal after sentinel)
+    };
+  }
+
+  function setPhaseUI(status, sub) {
+    document.getElementById('proc-status').textContent = status;
+    document.getElementById('proc-sub').textContent    = sub;
+  }
+
+  function showPipelineError(msg) {
+    setPhaseUI('✗ Pipeline error', msg);
+    document.getElementById('proc-sub').style.color = 'rgba(239,68,68,0.8)';
+  }
+
+  // ─── Workspace (Results + Chat) ────────────────────────────
+  function showWorkspace(data) {
+    document.getElementById('processing-state').classList.remove('show');
+
+    // Replace hero section with full workspace
+    const hero = document.querySelector('section.hero');
+    hero.innerHTML = buildWorkspaceHTML(data);
+    hero.style.minHeight = 'unset';
+    hero.style.paddingTop = '100px';
+
+    // Wire up chat after DOM is ready
+    document.getElementById('ws-chat-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+    });
+
+    // Scroll to workspace
+    hero.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function buildWorkspaceHTML(d) {
+    const tab = (id, label, active) =>
+      `<button class="ws-tab ${active ? 'active' : ''}" onclick="wsTab('${id}')" id="wstab-${id}">${label}</button>`;
+
+    return `
+    <div class="workspace" id="workspace">
+      <!-- Header -->
+      <div class="ws-header">
+        <div class="hero-eyebrow ws-eyebrow">
+          <div class="hero-eyebrow-dot"></div> Analysis Complete
+        </div>
+        <h2 class="hero-headline ws-title">${esc(d.title)}</h2>
+        <div class="ws-actions-row">
+          <button class="ws-new-btn" onclick="resetAll()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+            Analyze another
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab bar -->
+      <div class="ws-tabs">
+        ${tab('summary', '📋 Summary', true)}
+        ${tab('actions', '✅ Actions')}
+        ${tab('decisions', '🔑 Decisions')}
+        ${tab('questions', '❓ Questions')}
+        ${tab('transcript', '📄 Transcript')}
+        ${tab('chat', '💬 Chat')}
+      </div>
+
+      <!-- Panels -->
+      <div class="ws-panel active" id="wsp-summary">
+        <div class="ws-prose">${esc(d.summary)}</div>
+      </div>
+      <div class="ws-panel" id="wsp-actions">
+        <div class="ws-prose">${esc(d.action_items)}</div>
+      </div>
+      <div class="ws-panel" id="wsp-decisions">
+        <div class="ws-prose">${esc(d.key_decisions)}</div>
+      </div>
+      <div class="ws-panel" id="wsp-questions">
+        <div class="ws-prose">${esc(d.open_questions)}</div>
+      </div>
+      <div class="ws-panel" id="wsp-transcript">
+        <div class="ws-prose ws-prose-mono">${esc(d.transcript_preview)}<span class="ws-prose-muted">… [truncated for display]</span></div>
+      </div>
+      <div class="ws-panel" id="wsp-chat">
+        <div class="chat-log" id="ws-chat-log"></div>
+        <div class="chat-input-row">
+          <input class="url-input" id="ws-chat-input" placeholder="Ask anything about this media…" autocomplete="off" />
+          <button class="cta-btn ws-send-btn" id="ws-send-btn" onclick="sendChat()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function wsTab(id) {
+    document.querySelectorAll('.ws-tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.ws-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('wstab-' + id).classList.add('active');
+    document.getElementById('wsp-' + id).classList.add('active');
+  }
+
+  // ─── RAG Chat ─────────────────────────────────────────────
+  async function sendChat() {
+    const input = document.getElementById('ws-chat-input');
+    const q = input.value.trim();
+    if (!q || !sessionId) return;
+    input.value = '';
+    input.disabled = true;
+
+    appendChatBubble('user', q);
+    const thinkingId = appendChatBubble('bot', '…', true);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/chat/${sessionId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: q }),
+      });
+      const { answer } = await res.json();
+      updateBubble(thinkingId, answer);
+    } catch (err) {
+      updateBubble(thinkingId, '✗ Error: ' + err);
+    } finally {
+      input.disabled = false;
+      input.focus();
+    }
+  }
+
+  let bubbleIdx = 0;
+  function appendChatBubble(role, text, thinking = false) {
+    const log = document.getElementById('ws-chat-log');
+    const id  = 'bubble-' + (bubbleIdx++);
+    const div = document.createElement('div');
+    div.className = `ws-bubble ${role}${thinking ? ' thinking' : ''}`;
+    div.id = id;
+    div.textContent = text;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+    return id;
+  }
+
+  function updateBubble(id, text) {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = text; el.classList.remove('thinking'); }
+    const log = document.getElementById('ws-chat-log');
+    if (log) log.scrollTop = log.scrollHeight;
+  }
+
+  // ─── Helpers ──────────────────────────────────────────────
+  function esc(s = '') { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  function resetAll() {
+    if (sseSource) sseSource.close();
+    if (sessionId) fetch(`${API_BASE}/api/session/${sessionId}`, { method: 'DELETE' }).catch(() => {});
+    sessionId = null; uploadedPath = null; chatHistory = [];
+
+    const hero = document.querySelector('section.hero');
+    // Full reload is cleanest reset
+    window.location.reload();
+  }
+
+  function shakeInput() {
+    const input = document.getElementById('url-input');
+    input.style.borderColor = 'rgba(239,68,68,0.5)';
+    input.style.boxShadow   = '0 0 0 3px rgba(239,68,68,0.1)';
+    input.placeholder = 'Please enter a YouTube URL first…';
+    setTimeout(() => {
+      input.style.borderColor = ''; input.style.boxShadow = '';
+      input.placeholder = 'https://youtube.com/watch?v=…';
+    }, 2500);
+  }
+
+  function shakeUpload() {
+    const zone = document.getElementById('upload-zone');
+    zone.style.borderColor = 'rgba(239,68,68,0.5)';
+    setTimeout(() => { zone.style.borderColor = ''; }, 2500);
+  }
+
+  function resetState() {
+    if (sseSource) sseSource.close();
+    document.getElementById('processing-state').classList.remove('show');
+    document.getElementById('input-state').style.display = '';
+    document.getElementById('proc-sub').style.color = '';
+  }
+
+  // ─── Magnetic CTA ─────────────────────────────────────────
+  const ctaBtn = document.getElementById('cta-btn');
+  if (ctaBtn) {
+    ctaBtn.addEventListener('mousemove', e => {
+      const r  = ctaBtn.getBoundingClientRect();
+      ctaBtn.style.transform = `translate(${(e.clientX - r.left - r.width/2)*0.12}px,${(e.clientY - r.top - r.height/2)*0.12}px)`;
+    });
+    ctaBtn.addEventListener('mouseleave', () => { ctaBtn.style.transform = ''; });
+  }
+
+  document.getElementById('processing-state').addEventListener('click', e => {
+    if (!e.target.closest('button')) resetState();
+  });
+</script>
+</body>
+</html>
